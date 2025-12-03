@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # GhostCheck: Digital Footprint & Risk Radar 👻
 
 GhostCheck is a Spring Boot application designed to help users assess their digital risk. It provides tools to scan for public breaches, analyze password reuse patterns (securely), and maintain a history of digital footprint checks.
@@ -40,3 +41,7 @@ GhostCheck is a Spring Boot application designed to help users assess their digi
 
 ```bash
 mvn spring-boot:run
+=======
+# GhostCheck
+The app is Digital Footprint &amp; Risk Radar, built with Java 17, Spring Boot, Thymeleaf frontend, and Supabase (Postgres) database.
+>>>>>>> 2b6b68012f71166653eb1b3f32b6ba86ae26c040
