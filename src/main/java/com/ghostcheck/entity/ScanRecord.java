@@ -1,46 +1,44 @@
 package com.ghostcheck.entity;
-}
-    // ...existing code...
 
-    private List<BreachRecord> breachRecords;
-    @OneToMany(mappedBy = "scanRecord", cascade = CascadeType.ALL, orphanRemoval = true)
-
-    private Integer riskScore;
-    @Column
-
-    private String rawData;
-    @Column(columnDefinition = "TEXT")
-    @Lob
-
-    private Integer dataSourcesChecked;
-    @Column(nullable = false)
-
-    private Instant scanDate;
-    @Column(nullable = false)
-
-    private UserProfile userProfile;
-    @JoinColumn(name = "user_profile_id", nullable = false)
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-
-    private UUID id;
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Id
-
-public class ScanRecord {
-@ToString(exclude = {"userProfile", "breachRecords"})
-@EqualsAndHashCode(of = "id")
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
-@Table(name = "scan_records")
-@Entity
-
-import java.util.UUID;
-import java.util.List;
 import java.time.Instant;
-import lombok.*;
+import java.util.List;
+import java.util.UUID;
+
 import jakarta.persistence.*;
+import lombok.*;
 
+@Entity
+@Table(name = "scan_records")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(of = "id")
+@ToString(exclude = {"userProfile", "breachRecords"})
+public class ScanRecord {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_profile_id", nullable = false)
+    private UserProfile userProfile;
+
+    @Column(nullable = false)
+    private Instant scanDate;
+
+    @Column(nullable = false)
+    private Integer dataSourcesChecked;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String rawData;
+
+    @Column
+    private Integer riskScore;
+
+    @OneToMany(mappedBy = "scanRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BreachRecord> breachRecords;
+}

@@ -32,19 +32,20 @@ public class ScanService {
     @Transactional
     public ScanRecord performScan(UUID userId) {
         UserProfile user = userProfileRepository.findById(userId)
-            .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
+                .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
         List<BreachRecord> breaches = generateMockBreaches(user.getEmail());
         int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
-            .userProfile(user)
-            .scanDate(Instant.now())
-            .dataSourcesChecked(3) // simulated sources checked
-            .rawData(buildRawDataSummary(breaches))
-            .riskScore(riskScore)
-            .build();
+                .userProfile(user)
+                .scanDate(Instant.now())
+                .dataSourcesChecked(3) // simulated sources checked
+                .rawData(buildRawDataSummary(breaches))
+                .riskScore(riskScore)
+                .build();
 
+        // Updated: This now returns the saved record
         saveScanResults(scan, breaches);
 
         // update user risk score snapshot
@@ -58,8 +59,8 @@ public class ScanService {
         if (breaches == null || breaches.isEmpty()) return 0;
         int base = Math.min(breaches.size() * 15, 70);
         int severity = breaches.stream()
-            .mapToInt(b -> severityFromExposedData(b.getExposedData()))
-            .sum();
+                .mapToInt(b -> severityFromExposedData(b.getExposedData()))
+                .sum();
         int score = base + Math.min(severity, 30);
         return Math.max(0, Math.min(score, 100));
     }
@@ -77,18 +78,19 @@ public class ScanService {
             String exposed = buildExposedDataJson(email, fields, rnd);
 
             BreachRecord br = BreachRecord.builder()
-                .sourceName(source)
-                .breachDate(breachDate)
-                .description("Suspected exposure from " + source)
-                .exposedData(exposed)
-                .build();
+                    .sourceName(source)
+                    .breachDate(breachDate)
+                    .description("Suspected exposure from " + source)
+                    .exposedData(exposed)
+                    .build();
             result.add(br);
         }
         return result;
     }
 
+    // --- CHANGED METHOD: Returns ScanRecord instead of void ---
     @Transactional
-    public void saveScanResults(ScanRecord scanRecord, List<BreachRecord> breaches) {
+    public ScanRecord saveScanResults(ScanRecord scanRecord, List<BreachRecord> breaches) {
         ScanRecord persisted = scanRecordRepository.save(scanRecord);
         if (breaches != null && !breaches.isEmpty()) {
             // attach FK and persist in batch
@@ -96,12 +98,14 @@ public class ScanService {
             breachRecordRepository.saveAll(breaches);
             persisted.setBreachRecords(breaches);
         }
+        return persisted; // Returns the saved object
     }
+    // ----------------------------------------------------------
 
     @Transactional(readOnly = true)
     public ScanRecord getScanRecord(UUID id) {
         return scanRecordRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + id));
+                .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + id));
     }
 
     private String buildRawDataSummary(List<BreachRecord> breaches) {
@@ -133,8 +137,8 @@ public class ScanService {
     private String toJson(Map<String, ?> map) {
         // Minimal JSON serialization to avoid extra deps
         return map.entrySet().stream()
-            .map(e -> "\"" + e.getKey() + "\":" + stringify(e.getValue()))
-            .collect(Collectors.joining(",", "{", "}"));
+                .map(e -> "\"" + e.getKey() + "\":" + stringify(e.getValue()))
+                .collect(Collectors.joining(",", "{", "}"));
     }
 
     private String stringify(Object v) {
