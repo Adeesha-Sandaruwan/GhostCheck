@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en" class="dark" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GhostCheck — Scan Results</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-neutral-900 text-neutral-100 antialiased">
+  <header class="px-6 py-8">
+    <div class="mx-auto max-w-5xl flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">👻</span>
+        <div>
+          <h1 class="text-xl md:text-2xl font-semibold tracking-tight">GhostCheck</h1>
+          <p class="text-sm text-neutral-400">Scan Results</p>
+        </div>
+      </div>
+      <a href="/" class="text-sm text-neutral-400 hover:text-neutral-200 transition-colors">Home</a>
+    </div>
+  </header>
+
+  <main class="px-6">
+    <!-- User Profile Details -->
+    <section class="mx-auto max-w-5xl grid md:grid-cols-3 gap-8 md:gap-12 items-start">
+      <div class="md:col-span-2 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-6 md:p-8 shadow-xl">
+        <h2 class="text-2xl font-semibold tracking-tight">User Profile</h2>
+        <div class="mt-4 space-y-2 text-sm">
+          <p><span class="text-neutral-400">Name:</span> <span th:text="${profile.fullName}">Jane Doe</span></p>
+          <p><span class="text-neutral-400">Email:</span> <span th:text="${profile.email}">jane@example.com</span></p>
+          <p><span class="text-neutral-400">Created:</span> <span th:text="${#dates.format(profile.createdAt, 'yyyy-MM-dd HH:mm')}">2025-01-01 12:00</span></p>
+        </div>
+
+        <!-- Risk Score -->
+        <div class="mt-8">
+          <h3 class="text-xl font-semibold">Risk Score</h3>
+          <div class="mt-3 inline-flex items-center gap-3 rounded-lg px-4 py-2 border"
+               th:classappend="${scan.riskScore} <= 33 ? ' border-green-700 bg-green-900/40 text-green-300' :
+                               (${scan.riskScore} <= 66 ? ' border-yellow-700 bg-yellow-900/40 text-yellow-300' :
+                                                          ' border-red-700 bg-red-900/40 text-red-300')}">
+            <span class="text-sm">Score:</span>
+            <span class="text-2xl font-bold" th:text="${scan.riskScore}">42</span>
+          </div>
+          <p class="mt-2 text-xs text-neutral-400">
+            Green: Low risk (0–33), Yellow: Moderate (34–66), Red: High (67–100)
+          </p>
+        </div>
+
+        <!-- Breach Records Table -->
+        <div class="mt-8">
+          <h3 class="text-xl font-semibold">Breach Records</h3>
+          <div class="mt-3 overflow-x-auto rounded-xl border border-neutral-800">
+            <table class="min-w-full divide-y divide-neutral-800">
+              <thead class="bg-neutral-900">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-neutral-400">Source</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-neutral-400">Date</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-neutral-400">Description</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-neutral-400">Exposed Data</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-800 bg-neutral-950/60" th:if="${breaches != null}">
+                <tr th:each="b : ${breaches}">
+                  <td class="px-4 py-3 text-sm" th:text="${b.sourceName}">ExampleSource</td>
+                  <td class="px-4 py-3 text-sm" th:text="${#dates.format(b.breachDate, 'yyyy-MM-dd')}">2025-01-01</td>
+                  <td class="px-4 py-3 text-sm" th:text="${b.description}">Credentials exposed</td>
+                  <td class="px-4 py-3 text-sm" th:text="${b.exposedData}">email, password</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(breaches)}">
+                  <td class="px-4 py-3 text-sm text-neutral-400" colspan="4">No breaches found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar: Scan Summary and Actions -->
+      <aside class="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-6 md:p-8 shadow-xl">
+        <h3 class="text-xl font-semibold">Scan Summary</h3>
+        <ul class="mt-3 space-y-2 text-sm text-neutral-300">
+          <li>Checked sources: <span class="text-neutral-400" th:text="${scan.dataSourcesChecked}">10</span></li>
+          <li>Scan date: <span class="text-neutral-400" th:text="${#dates.format(scan.scanDate, 'yyyy-MM-dd HH:mm')}">2025-01-01 12:00</span></li>
+          <li>Breach count: <span class="text-neutral-400" th:text="${breaches != null ? breaches.size() : 0}">0</span></li>
+        </ul>
+
+        <div class="mt-6">
+          <form action="/scan" method="post" class="space-y-3">
+            <input type="hidden" name="fullName" th:value="${profile.fullName}" />
+            <input type="hidden" name="email" th:value="${profile.email}" />
+            <button
+              type="submit"
+              class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-neutral-900 transition"
+            >
+              Scan again
+            </button>
+          </form>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="px-6 mt-12 mb-8">
+    <div class="mx-auto max-w-5xl flex items-center justify-between text-xs text-neutral-500">
+      <p>&copy; <span id="year"></span> GhostCheck. All rights reserved.</p>
+      <p>Built with Spring Boot & Thymeleaf.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
+

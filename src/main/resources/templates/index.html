@@ -1,3 +1,114 @@
-<!-- Placeholder Thymeleaf template for GhostCheck -->
-<!-- No code yet. Structure only. -->
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GhostCheck — OSINT Risk Scanner</title>
+  <meta name="description" content="GhostCheck helps you assess OSINT exposure and breach risk." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>👻</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-neutral-900 text-neutral-100 antialiased">
+  <div class="relative isolate">
+    <!-- Decorative gradient -->
+    <div class="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-neutral-900 via-neutral-900 to-black"></div>
 
+    <header class="px-6 py-8">
+      <div class="mx-auto max-w-5xl flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">👻</span>
+          <div>
+            <h1 class="text-xl md:text-2xl font-semibold tracking-tight">GhostCheck</h1>
+            <p class="text-sm text-neutral-400">OSINT Exposure & Breach Risk Scanner</p>
+          </div>
+        </div>
+        <nav class="hidden md:flex items-center gap-6 text-sm text-neutral-400">
+          <a href="/" class="hover:text-neutral-200 transition-colors">Home</a>
+          <a href="#about" class="hover:text-neutral-200 transition-colors">About</a>
+          <a href="#privacy" class="hover:text-neutral-200 transition-colors">Privacy</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="px-6">
+      <section class="mx-auto max-w-5xl grid md:grid-cols-2 gap-8 md:gap-12 items-start">
+        <div class="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-6 md:p-8 shadow-xl">
+          <h2 class="text-2xl font-semibold tracking-tight">Start a Scan</h2>
+          <p class="mt-2 text-sm text-neutral-400">
+            Enter your name and email to run a simulated OSINT scan and get a risk score.
+          </p>
+          <form action="/scan" method="post" class="mt-6 space-y-5">
+            <div>
+              <label for="fullName" class="block text-sm font-medium text-neutral-300">Name</label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                required
+                placeholder="Jane Doe"
+                class="mt-2 w-full rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-100 placeholder-neutral-500 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
+              />
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium text-neutral-300">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="jane.doe@example.com"
+                class="mt-2 w-full rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-100 placeholder-neutral-500 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
+              />
+            </div>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-neutral-900 transition"
+            >
+              <span>Run Scan</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+            <p class="text-xs text-neutral-500">By submitting, you agree to our simulated scan using mock data.</p>
+          </form>
+        </div>
+
+        <div class="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-6 md:p-8 shadow-xl">
+          <h3 class="text-xl font-semibold">What is GhostCheck?</h3>
+          <p class="mt-3 text-sm text-neutral-400">
+            GhostCheck simulates an OSINT-style scan to estimate your exposure by generating mock breach entries
+            and calculating a risk score. Use it to explore how public data could affect your security posture.
+          </p>
+          <div class="mt-6 grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <p class="text-xs text-neutral-400">Features</p>
+              <ul class="mt-2 space-y-1 text-sm">
+                <li>• Simulated breaches</li>
+                <li>• Risk scoring 0–100</li>
+                <li>• Clean UI</li>
+              </ul>
+            </div>
+            <div class="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <p class="text-xs text-neutral-400">Privacy</p>
+              <p class="mt-2 text-sm">
+                This demo does not call real external APIs. No third-party data collection.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="px-6 mt-12 mb-8">
+      <div class="mx-auto max-w-5xl flex items-center justify-between text-xs text-neutral-500">
+        <p>&copy; <span id="year"></span> GhostCheck. All rights reserved.</p>
+        <p>Built with Spring Boot & Thymeleaf.</p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
