@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # GhostCheck: Digital Footprint & Risk Radar 👻
 
 GhostCheck is a Spring Boot application designed to help users assess their digital risk. It provides tools to scan for public breaches, analyze password reuse patterns (securely), and maintain a history of digital footprint checks.
