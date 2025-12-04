@@ -9,5 +9,4 @@ public class GhostcheckApplication {
     public static void main(String[] args) {
         SpringApplication.run(GhostcheckApplication.class, args);
     }
-
 }
