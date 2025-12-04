@@ -98,7 +98,11 @@ public class ScanService {
         }
     }
 
-    // ...existing code...
+    @Transactional(readOnly = true)
+    public ScanRecord getScanRecord(UUID id) {
+        return scanRecordRepository.findById(id)
+            .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + id));
+    }
 
     private String buildRawDataSummary(List<BreachRecord> breaches) {
         Map<String, Object> summary = new LinkedHashMap<>();
@@ -142,4 +146,3 @@ public class ScanService {
         return "\"" + String.valueOf(v).replace("\"", "\\\"") + "\"";
     }
 }
-
