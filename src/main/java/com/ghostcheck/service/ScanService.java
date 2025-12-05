@@ -6,8 +6,7 @@ import com.ghostcheck.entity.UserProfile;
 import com.ghostcheck.repository.BreachRecordRepository;
 import com.ghostcheck.repository.ScanRecordRepository;
 import com.ghostcheck.repository.UserProfileRepository;
-import com.ghostcheck.service.osint.HIBPClient;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.ghostcheck.service.osint.LocalBreachClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,16 +20,16 @@ public class ScanService {
     private final UserProfileRepository userProfileRepository;
     private final ScanRecordRepository scanRecordRepository;
     private final BreachRecordRepository breachRecordRepository;
-    private final HIBPClient hibpClient;
+    private final LocalBreachClient localBreachClient;
 
     public ScanService(UserProfileRepository userProfileRepository,
                        ScanRecordRepository scanRecordRepository,
                        BreachRecordRepository breachRecordRepository,
-                       @Qualifier("HIBPClient") HIBPClient hibpClient) {
+                       LocalBreachClient localBreachClient) {
         this.userProfileRepository = userProfileRepository;
         this.scanRecordRepository = scanRecordRepository;
         this.breachRecordRepository = breachRecordRepository;
-        this.hibpClient = hibpClient;
+        this.localBreachClient = localBreachClient;
     }
 
     @Transactional
@@ -38,9 +37,22 @@ public class ScanService {
         UserProfile user = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
-        // Offline mode: use deterministic generator instead of HIBP
-        List<BreachRecord> breaches = generateFreeBreachData(user.getEmail());
-        int riskScore = calculateRiskScore(breaches);
+        boolean breached = localBreachClient.isBreached(user.getEmail());
+
+        int riskScore = breached ? 100 : 0;
+
+        List<BreachRecord> breaches = new ArrayList<>();
+        if (breached) {
+            BreachRecord record = BreachRecord.builder()
+                    .sourceName("Offline Breach Database")
+                    .breachDate(Instant.now())
+                    .addedDate(Instant.now())
+                    .exposedData("{\"password\":\"compromised\"}")
+                    .pwnCount(1000000L)
+                    .description("Email found in offline breach dataset.")
+                    .build();
+            breaches.add(record);
+        }
 
         ScanRecord scan = ScanRecord.builder()
                 .userProfile(user)
@@ -68,41 +80,6 @@ public class ScanService {
     public ScanRecord getScanRecord(UUID scanId) {
         return scanRecordRepository.findById(scanId)
                 .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + scanId));
-    }
-
-    /**
-     * Fallback scan that does not persist anything. Useful when the database is unavailable.
-     */
-    public ScanRecord performScanWithoutPersistence(String fullName, String email) {
-        UserProfile user = UserProfile.builder()
-                .id(null)
-                .fullName(fullName)
-                .email(email)
-                .createdAt(Instant.now())
-                .riskScore(0)
-                .build();
-
-        // Offline mode: use deterministic generator instead of HIBP
-        List<BreachRecord> breaches = generateFreeBreachData(email);
-        int riskScore = calculateRiskScore(breaches);
-
-        ScanRecord scan = ScanRecord.builder()
-                .id(null)
-                .userProfile(user)
-                .scanDate(Instant.now())
-                .dataSourcesChecked(1)
-                .rawData(buildRawDataSummary(breaches))
-                .riskScore(riskScore)
-                .build();
-
-        if (!breaches.isEmpty()) {
-            breaches.forEach(b -> b.setScanRecord(scan));
-            scan.setBreachRecords(breaches);
-        } else {
-            scan.setBreachRecords(java.util.Collections.emptyList());
-        }
-        user.setRiskScore(riskScore);
-        return scan;
     }
 
     @Transactional
@@ -193,60 +170,50 @@ public class ScanService {
         return "\"" + String.valueOf(v).replace("\"", "\\\"") + "\"";
     }
 
-    // Free offline breach generator to replace HIBP API.
-    // Generates realistic breaches and risk scores for any email.
-    public List<BreachRecord> generateFreeBreachData(String email) {
-        List<BreachRecord> list = new ArrayList<>();
-        Random random = new Random(email == null ? 0 : email.toLowerCase().hashCode());
+    /**
+     * Fallback scan that does not persist anything. Useful when the database is unavailable.
+     */
+    public ScanRecord performScanWithoutPersistence(String fullName, String email) {
+        UserProfile user = UserProfile.builder()
+                .id(null)
+                .fullName(fullName)
+                .email(email)
+                .createdAt(Instant.now())
+                .riskScore(0)
+                .build();
 
-        // Add some common "realistic" demo breaches for popular emails
-        Map<String, String> demoBreaches = new HashMap<>();
-        demoBreaches.put("test@example.com", "Demo breach from 2018");
-        demoBreaches.put("ashley.madison@example.com", "Ashley Madison leak 2015");
-        demoBreaches.put("linkedinuser@example.com", "LinkedIn leak 2012");
-        demoBreaches.put("adobe_user@example.com", "Adobe leak 2013");
+        boolean breached = localBreachClient.isBreached(email);
+        int riskScore = breached ? 100 : 0;
 
-        String key = email == null ? "" : email.toLowerCase();
-        if (demoBreaches.containsKey(key)) {
-            BreachRecord special = new BreachRecord();
-            special.setSourceName(demoBreaches.get(key));
-            special.setBreachDate(Instant.parse("2015-01-01T00:00:00Z"));
-            special.setAddedDate(Instant.parse("2015-01-05T00:00:00Z"));
-            special.setPwnCount(5_000_000L);
-            special.setExposedData("{\"email\":true,\"password_hash\":true}");
-            special.setDescription("Special offline demo breach entry for " + email);
-            list.add(special);
+        List<BreachRecord> breaches = new ArrayList<>();
+        if (breached) {
+            BreachRecord record = BreachRecord.builder()
+                    .sourceName("Offline Breach Database")
+                    .breachDate(Instant.now())
+                    .addedDate(Instant.now())
+                    .exposedData("{\"password\":\"compromised\"}")
+                    .pwnCount(1000000L)
+                    .description("Email found in offline breach dataset.")
+                    .build();
+            breaches.add(record);
         }
 
-        // Generate 50–200 synthetic breaches based on hash of email
-        int totalBreaches = 50 + random.nextInt(150);
-        for (int i = 0; i < totalBreaches; i++) {
-            long pwn = 1_000L + random.nextInt(50_000_000);
-            String exposed;
-            switch (i % 6) {
-                case 0 -> exposed = "{\"email\":true}";
-                case 1 -> exposed = "{\"email\":true,\"password\":true}";
-                case 2 -> exposed = "{\"email\":true,\"password\":true,\"ip\":true}";
-                case 3 -> exposed = "{\"email\":true,\"phone\":true}";
-                case 4 -> exposed = "{\"email\":true,\"address\":true}";
-                default -> exposed = "{\"email\":true,\"password_hash\":true,\"credit card\":true}";
-            }
+        ScanRecord scan = ScanRecord.builder()
+                .id(null)
+                .userProfile(user)
+                .scanDate(Instant.now())
+                .dataSourcesChecked(1)
+                .rawData(buildRawDataSummary(breaches))
+                .riskScore(riskScore)
+                .build();
 
-            BreachRecord record = new BreachRecord();
-            record.setSourceName("OfflineBreach-" + i);
-            // Create somewhat realistic dates
-            int year = 2010 + (i % 10);
-            int month = 1 + (i % 9);
-            String monthStr = (month < 10 ? "0" : "") + month;
-            record.setBreachDate(Instant.parse(year + "-" + monthStr + "-01T00:00:00Z"));
-            record.setAddedDate(Instant.parse(year + "-" + monthStr + "-10T00:00:00Z"));
-            record.setPwnCount(pwn);
-            record.setExposedData(exposed);
-            record.setDescription("Synthetic offline breach #" + i + " for testing");
-
-            list.add(record);
+        if (!breaches.isEmpty()) {
+            breaches.forEach(b -> b.setScanRecord(scan));
+            scan.setBreachRecords(breaches);
+        } else {
+            scan.setBreachRecords(java.util.Collections.emptyList());
         }
-
-        return list;
+        user.setRiskScore(riskScore);
+        return scan;
     }
 }

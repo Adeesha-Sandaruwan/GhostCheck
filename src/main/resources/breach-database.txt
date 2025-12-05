@@ -1,0 +1,10 @@
+ashley.madison@example.com:123456
+john@gmail.com:qwerty
+test@example.com:rockyou
+demo@breach.com:password123
+user1@mail.com:hello123
+user2@mail.com:password
+user3@mail.com:dragon
+user4@mail.com:letmein
+user5@mail.com:pass123
+user6@mail.com:abc123
