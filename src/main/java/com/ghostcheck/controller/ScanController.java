@@ -51,14 +51,13 @@ public class ScanController {
             model.addAttribute("breaches", scanRecord.getBreachRecords());
             return "results";
         } catch (Exception ex) {
-            // Show friendly message on home page; do not change URLs or credentials
-            model.addAttribute("errorMessage", "We hit a snag. Please try again from the home page. If the problem persists, the database may be temporarily unavailable.");
-            try {
-                model.addAttribute("profiles", userProfileService.listProfiles());
-            } catch (Exception ignored) {
-                model.addAttribute("profiles", java.util.Collections.emptyList());
-            }
-            return "index";
+            // Fallback: run a transient scan and show results without persistence
+            ScanRecord scanRecord = scanService.performScanWithoutPersistence(fullName, email);
+            model.addAttribute("profile", scanRecord.getUserProfile());
+            model.addAttribute("scan", scanRecord);
+            model.addAttribute("breaches", scanRecord.getBreachRecords());
+            model.addAttribute("error", "Scan service is temporarily unavailable. Showing a transient result.");
+            return "results";
         }
     }
 

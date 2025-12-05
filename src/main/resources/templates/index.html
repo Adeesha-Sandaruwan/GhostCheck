@@ -9,6 +9,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-neutral-900 text-neutral-100 antialiased">
+  <!-- Error banner (shown if 'errorMessage' is present) -->
+  <div th:if="${errorMessage}" class="px-6 py-3 bg-red-900/50 text-red-200 border-b border-red-800">
+    <div class="mx-auto max-w-5xl text-sm" th:text="${errorMessage}">An error occurred</div>
+  </div>
+
   <div class="relative isolate">
     <!-- Decorative gradient -->
     <div class="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-neutral-900 via-neutral-900 to-black"></div>

@@ -68,6 +68,40 @@ public class ScanService {
                 .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + scanId));
     }
 
+    /**
+     * Fallback scan that does not persist anything. Useful when the database is unavailable.
+     */
+    public ScanRecord performScanWithoutPersistence(String fullName, String email) {
+        UserProfile user = UserProfile.builder()
+                .id(null)
+                .fullName(fullName)
+                .email(email)
+                .createdAt(Instant.now())
+                .riskScore(0)
+                .build();
+
+        List<BreachRecord> breaches = hibpClient.breachesForEmail(email);
+        int riskScore = calculateRiskScore(breaches);
+
+        ScanRecord scan = ScanRecord.builder()
+                .id(null)
+                .userProfile(user)
+                .scanDate(Instant.now())
+                .dataSourcesChecked(1)
+                .rawData(buildRawDataSummary(breaches))
+                .riskScore(riskScore)
+                .build();
+
+        if (!breaches.isEmpty()) {
+            breaches.forEach(b -> b.setScanRecord(scan));
+            scan.setBreachRecords(breaches);
+        } else {
+            scan.setBreachRecords(java.util.Collections.emptyList());
+        }
+        user.setRiskScore(riskScore);
+        return scan;
+    }
+
     public int calculateRiskScore(List<BreachRecord> breaches) {
         if (breaches == null || breaches.isEmpty()) return 0;
 
