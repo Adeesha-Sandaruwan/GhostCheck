@@ -8,10 +8,14 @@ import com.ghostcheck.service.UserProfileService;
 import com.ghostcheck.service.dto.BreachDto;
 import com.ghostcheck.service.dto.ScanDto;
 import com.ghostcheck.service.dto.UserProfileDto;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,6 +50,17 @@ public class ApiScanController {
         return ResponseEntity.ok(new UserProfileDto(profile.getFullName(), profile.getEmail()));
     }
 
+    @GetMapping(value = "/check", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> check(@RequestParam("email") String email) {
+        int risk = scanService.getRiskScore(email);
+        String severity = scanService.getSeverity(email);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("email", email);
+        body.put("riskScore", risk);
+        body.put("severity", severity);
+        return ResponseEntity.ok(body);
+    }
+
     private ScanDto toScanDto(ScanRecord scan) {
         List<BreachDto> breaches = scan.getBreachRecords().stream()
             .map(this::toBreachDto)
@@ -70,4 +85,3 @@ public class ApiScanController {
         );
     }
 }
-

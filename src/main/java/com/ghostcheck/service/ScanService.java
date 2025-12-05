@@ -32,32 +32,39 @@ public class ScanService {
         this.localBreachClient = localBreachClient;
     }
 
+    public int getRiskScore(String email) {
+        return localBreachClient.getRiskScore(email);
+    }
+
+    public String getSeverity(String email) {
+        return Optional.ofNullable(localBreachClient.getSeverity(email)).orElse("none");
+    }
+
     @Transactional
     public ScanRecord performScan(UUID userId) {
         UserProfile user = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
-        boolean breached = localBreachClient.isBreached(user.getEmail());
-        int riskScore = breached ? 100 : localBreachClient.randomExposureScore(user.getEmail());
+        int riskScore = getRiskScore(user.getEmail());
+        String severity = Optional.ofNullable(localBreachClient.getSeverity(user.getEmail())).orElse("none");
 
         List<BreachRecord> breaches = new ArrayList<>();
-        if (breached) {
+        if (!"none".equals(severity)) {
             BreachRecord record = BreachRecord.builder()
                     .sourceName("Offline Breach Database")
                     .breachDate(Instant.now())
                     .addedDate(Instant.now())
-                    .exposedData("{\"password\":\"compromised\"}")
-                    .pwnCount(1_000_000L)
+                    .exposedData("{\"severity\":\"" + severity + "\"}")
+                    .pwnCount(null)
                     .description("This email has known breaches in the offline database.")
                     .build();
             breaches.add(record);
         } else {
-            // Add a friendly advisory entry (non-breach) to carry the message in results
             BreachRecord advisory = BreachRecord.builder()
                     .sourceName("Advisory")
                     .breachDate(Instant.now())
                     .addedDate(Instant.now())
-                    .exposedData("{\"advice\":\"stay_vigilant\"}")
+                    .exposedData("{\"severity\":\"none\"}")
                     .pwnCount(null)
                     .description("No known breaches found in the offline database, but always stay vigilant.")
                     .build();
@@ -120,17 +127,17 @@ public class ScanService {
                 .riskScore(0)
                 .build();
 
-        boolean breached = localBreachClient.isBreached(email);
-        int riskScore = breached ? 100 : localBreachClient.randomExposureScore(email);
+        int riskScore = getRiskScore(email);
+        String severity = Optional.ofNullable(localBreachClient.getSeverity(email)).orElse("none");
 
         List<BreachRecord> breaches = new ArrayList<>();
-        if (breached) {
+        if (!"none".equals(severity)) {
             BreachRecord record = BreachRecord.builder()
                     .sourceName("Offline Breach Database")
                     .breachDate(Instant.now())
                     .addedDate(Instant.now())
-                    .exposedData("{\"password\":\"compromised\"}")
-                    .pwnCount(1_000_000L)
+                    .exposedData("{\"severity\":\"" + severity + "\"}")
+                    .pwnCount(null)
                     .description("This email has known breaches in the offline database.")
                     .build();
             breaches.add(record);
@@ -139,7 +146,7 @@ public class ScanService {
                     .sourceName("Advisory")
                     .breachDate(Instant.now())
                     .addedDate(Instant.now())
-                    .exposedData("{\"advice\":\"stay_vigilant\"}")
+                    .exposedData("{\"severity\":\"none\"}")
                     .pwnCount(null)
                     .description("No known breaches found in the offline database, but always stay vigilant.")
                     .build();
