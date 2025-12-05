@@ -1,0 +1,24 @@
+[
+  {
+    "email": "alice@example.com",
+    "Name": "ExampleForums",
+    "Description": "User accounts exposed from ExampleForums",
+    "BreachDate": "2020-06-15",
+    "DataClasses": ["Email addresses", "Usernames", "Passwords"]
+  },
+  {
+    "email": "bob@example.com",
+    "Name": "SampleShop",
+    "Description": "Customer data leaked from SampleShop",
+    "BreachDate": "2021-03-02",
+    "DataClasses": ["Email addresses", "Names", "Phone numbers"]
+  },
+  {
+    "email": "charlie@example.com",
+    "Name": "TestNetwork",
+    "Description": "Credentials dumped for TestNetwork",
+    "BreachDate": "2019-11-01",
+    "DataClasses": ["Email addresses", "Passwords", "IP addresses"]
+  }
+]
+

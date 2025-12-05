@@ -6,12 +6,12 @@ import com.ghostcheck.entity.UserProfile;
 import com.ghostcheck.repository.BreachRecordRepository;
 import com.ghostcheck.repository.ScanRecordRepository;
 import com.ghostcheck.repository.UserProfileRepository;
+import com.ghostcheck.service.osint.HIBPClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,13 +20,16 @@ public class ScanService {
     private final UserProfileRepository userProfileRepository;
     private final ScanRecordRepository scanRecordRepository;
     private final BreachRecordRepository breachRecordRepository;
+    private final HIBPClient hibpClient;
 
     public ScanService(UserProfileRepository userProfileRepository,
                        ScanRecordRepository scanRecordRepository,
-                       BreachRecordRepository breachRecordRepository) {
+                       BreachRecordRepository breachRecordRepository,
+                       HIBPClient hibpClient) {
         this.userProfileRepository = userProfileRepository;
         this.scanRecordRepository = scanRecordRepository;
         this.breachRecordRepository = breachRecordRepository;
+        this.hibpClient = hibpClient;
     }
 
     @Transactional
@@ -34,108 +37,95 @@ public class ScanService {
         UserProfile user = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
-        List<BreachRecord> breaches = generateMockBreaches(user.getEmail());
+        List<BreachRecord> breaches = hibpClient.breachesForEmail(user.getEmail());
         int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
                 .userProfile(user)
                 .scanDate(Instant.now())
-                .dataSourcesChecked(3) // simulated sources checked
+                .dataSourcesChecked(1)
                 .rawData(buildRawDataSummary(breaches))
                 .riskScore(riskScore)
                 .build();
 
-        // Updated: This now returns the saved record
-        saveScanResults(scan, breaches);
+        ScanRecord persisted = scanRecordRepository.save(scan);
 
-        // update user risk score snapshot
-        user.setRiskScore(riskScore);
-        userProfileRepository.save(user);
-
-        return scan;
-    }
-
-    public int calculateRiskScore(List<BreachRecord> breaches) {
-        if (breaches == null || breaches.isEmpty()) return 0;
-        int base = Math.min(breaches.size() * 15, 70);
-        int severity = breaches.stream()
-                .mapToInt(b -> severityFromExposedData(b.getExposedData()))
-                .sum();
-        int score = base + Math.min(severity, 30);
-        return Math.max(0, Math.min(score, 100));
-    }
-
-    public List<BreachRecord> generateMockBreaches(String email) {
-        ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        int count = rnd.nextInt(0, 4); // 0-3 breaches
-        List<String> sources = Arrays.asList("GhostLeaks", "DarkSearch", "BreachWatch", "DataPwned");
-        List<String> fields = Arrays.asList("email", "password_hash", "ip", "name", "phone");
-
-        List<BreachRecord> result = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            String source = sources.get(rnd.nextInt(sources.size()));
-            Instant breachDate = Instant.now().minusSeconds(rnd.nextLong(7L * 24 * 3600, 5L * 365 * 24 * 3600));
-            String exposed = buildExposedDataJson(email, fields, rnd);
-
-            BreachRecord br = BreachRecord.builder()
-                    .sourceName(source)
-                    .breachDate(breachDate)
-                    .description("Suspected exposure from " + source)
-                    .exposedData(exposed)
-                    .build();
-            result.add(br);
-        }
-        return result;
-    }
-
-    // --- CHANGED METHOD: Returns ScanRecord instead of void ---
-    @Transactional
-    public ScanRecord saveScanResults(ScanRecord scanRecord, List<BreachRecord> breaches) {
-        ScanRecord persisted = scanRecordRepository.save(scanRecord);
-        if (breaches != null && !breaches.isEmpty()) {
-            // attach FK and persist in batch
+        if (!breaches.isEmpty()) {
             breaches.forEach(b -> b.setScanRecord(persisted));
             breachRecordRepository.saveAll(breaches);
             persisted.setBreachRecords(breaches);
         }
-        return persisted; // Returns the saved object
+
+        user.setRiskScore(riskScore);
+        userProfileRepository.save(user);
+
+        return persisted;
     }
-    // ----------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public ScanRecord getScanRecord(UUID id) {
-        return scanRecordRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + id));
+    public ScanRecord getScanRecord(UUID scanId) {
+        return scanRecordRepository.findById(scanId)
+                .orElseThrow(() -> new NoSuchElementException("ScanRecord not found: " + scanId));
     }
 
-    private String buildRawDataSummary(List<BreachRecord> breaches) {
-        Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("breachCount", breaches.size());
-        summary.put("sources", breaches.stream().map(BreachRecord::getSourceName).collect(Collectors.toSet()));
-        return toJson(summary);
+    public int calculateRiskScore(List<BreachRecord> breaches) {
+        if (breaches == null || breaches.isEmpty()) return 0;
+
+        int count = breaches.size();
+        int countComponent = Math.min(15 * count, 60);
+
+        int severityComponent = breaches.stream()
+                .mapToInt(b -> severityFromExposedData(b.getExposedData()) + pwnSeverity(b.getPwnCount()))
+                .sum();
+        severityComponent = Math.min(severityComponent, 40);
+
+        int score = countComponent + severityComponent;
+        return Math.max(0, Math.min(score, 100));
     }
 
     private int severityFromExposedData(String json) {
         if (json == null || json.isEmpty()) return 0;
         int score = 0;
-        if (json.contains("password_hash")) score += 20;
-        if (json.contains("phone")) score += 10;
-        if (json.contains("ip")) score += 5;
-        return score;
+        String lower = json.toLowerCase();
+        // Heuristics for common breach data classes
+        if (lower.contains("password") || lower.contains("password_hash")) score += 25;
+        if (lower.contains("email")) score += 5;
+        if (lower.contains("ip")) score += 5;
+        if (lower.contains("phone")) score += 10;
+        if (lower.contains("address")) score += 5;
+        if (lower.contains("credit card") || lower.contains("card")) score += 25;
+        // Cap to avoid runaway
+        return Math.min(score, 40);
     }
 
-    private String buildExposedDataJson(String email, List<String> fields, ThreadLocalRandom rnd) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("email", email);
-        if (rnd.nextBoolean()) data.put("password_hash", "sha256:" + UUID.randomUUID());
-        if (rnd.nextBoolean()) data.put("ip", "192.0.2." + rnd.nextInt(1, 254));
-        if (rnd.nextBoolean()) data.put("name", "Redacted");
-        if (rnd.nextBoolean()) data.put("phone", "+1-555-" + rnd.nextInt(1000, 9999));
-        return toJson(data);
+    private int pwnSeverity(Long pwnCount) {
+        if (pwnCount == null || pwnCount <= 0) return 0;
+        if (pwnCount >= 50_000_000L) return 15;
+        if (pwnCount >= 1_000_000L) return 10;
+        if (pwnCount >= 10_000L) return 5;
+        return 2;
+    }
+
+    private String buildRawDataSummary(List<BreachRecord> breaches) {
+        List<BreachRecord> safeList = breaches == null ? Collections.emptyList() : breaches;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("breachCount", safeList.size());
+        payload.put("breaches", safeList.stream()
+                .map(b -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("source", b.getSourceName());
+                    entry.put("breachDate", b.getBreachDate());
+                    entry.put("addedDate", b.getAddedDate());
+                    entry.put("pwnCount", b.getPwnCount());
+                    entry.put("severity", severityFromExposedData(b.getExposedData()));
+                    entry.put("description", b.getDescription());
+                    return entry;
+                })
+                .collect(Collectors.toList()));
+        return toJson(payload);
     }
 
     private String toJson(Map<String, ?> map) {
-        // Minimal JSON serialization to avoid extra deps
         return map.entrySet().stream()
                 .map(e -> "\"" + e.getKey() + "\":" + stringify(e.getValue()))
                 .collect(Collectors.joining(",", "{", "}"));

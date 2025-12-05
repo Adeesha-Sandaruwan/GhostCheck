@@ -3,6 +3,7 @@ package com.ghostcheck.service;
 import com.ghostcheck.entity.UserProfile;
 import com.ghostcheck.repository.UserProfileRepository;
 import com.ghostcheck.service.dto.UserProfileDto;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,13 +28,24 @@ public class UserProfileService {
         if (dto.email() == null || dto.email().isBlank()) {
             throw new IllegalArgumentException("Email is required");
         }
+        String normalizedEmail = dto.email().trim().toLowerCase();
+        return userProfileRepository.findByEmailIgnoreCase(normalizedEmail)
+            .orElseGet(() -> persistNewProfile(dto.fullName(), normalizedEmail));
+    }
+
+    private UserProfile persistNewProfile(String fullName, String email) {
         UserProfile profile = UserProfile.builder()
-            .fullName(dto.fullName())
-            .email(dto.email().trim().toLowerCase())
+            .fullName(fullName)
+            .email(email)
             .createdAt(Instant.now())
             .riskScore(0)
             .build();
-        return userProfileRepository.save(profile);
+        try {
+            return userProfileRepository.save(profile);
+        } catch (DataIntegrityViolationException ex) {
+            return userProfileRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> ex);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -57,4 +69,3 @@ public class UserProfileService {
         return userProfileRepository.save(profile);
     }
 }
-

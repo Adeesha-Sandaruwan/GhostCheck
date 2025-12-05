@@ -2,6 +2,9 @@ package com.ghostcheck.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -13,9 +16,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"scanRecord"})
+@ToString(exclude = "scanRecord")
 public class BreachRecord {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -24,19 +26,22 @@ public class BreachRecord {
     @JoinColumn(name = "scan_record_id", nullable = false)
     private ScanRecord scanRecord;
 
-    @Column(nullable = false)
+    @Column(name = "source_name", nullable = false)
     private String sourceName;
 
-    @Column(nullable = false)
-    private Instant breachDate;
-
-    @Column(length = 2048)
-    private String description;
-
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "exposed_data", nullable = false)
     private String exposedData;
 
-    // ...existing code...
-}
+    @Column(name = "breach_date", nullable = false)
+    private Instant breachDate;
 
+    @Column(name = "added_date", nullable = false)
+    private Instant addedDate;
+
+    @Column(name = "pwn_count")
+    private Long pwnCount;
+
+    @Column(name = "description")
+    private String description;
+}

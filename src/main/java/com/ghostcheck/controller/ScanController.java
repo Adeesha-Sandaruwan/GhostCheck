@@ -10,8 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 
 @Controller
 public class ScanController {
@@ -27,8 +27,12 @@ public class ScanController {
     // GET / → index.html
     @GetMapping("/")
     public String index(Model model) {
-        // ...existing code...
-        model.addAttribute("profiles", userProfileService.listProfiles());
+        try {
+            model.addAttribute("profiles", userProfileService.listProfiles());
+        } catch (Exception ex) {
+            model.addAttribute("profiles", java.util.Collections.emptyList());
+            model.addAttribute("errorMessage", "We hit a snag. Please try again from the home page. If the problem persists, the database may be temporarily unavailable.");
+        }
         return "index";
     }
 
@@ -37,32 +41,43 @@ public class ScanController {
     public String triggerScan(@RequestParam("fullName") String fullName,
                               @RequestParam("email") String email,
                               Model model) {
-        UserProfileDto dto = new UserProfileDto(fullName, email);
-        UserProfile profile = userProfileService.createProfile(dto);
+        try {
+            UserProfileDto dto = new UserProfileDto(fullName, email);
+            UserProfile profile = userProfileService.createProfile(dto);
+            ScanRecord scanRecord = scanService.performScan(profile.getId());
 
-        ScanRecord scanRecord = scanService.performScan(profile.getId());
-
-        model.addAttribute("profile", profile);
-        model.addAttribute("scan", scanRecord);
-        model.addAttribute("breaches", scanRecord.getBreachRecords()); // assumes mapped collection
-        return "scan";
+            model.addAttribute("profile", profile);
+            model.addAttribute("scan", scanRecord);
+            model.addAttribute("breaches", scanRecord.getBreachRecords());
+            return "results";
+        } catch (Exception ex) {
+            // Show friendly message on home page; do not change URLs or credentials
+            model.addAttribute("errorMessage", "We hit a snag. Please try again from the home page. If the problem persists, the database may be temporarily unavailable.");
+            try {
+                model.addAttribute("profiles", userProfileService.listProfiles());
+            } catch (Exception ignored) {
+                model.addAttribute("profiles", java.util.Collections.emptyList());
+            }
+            return "index";
+        }
     }
 
     // GET /scan/{id} → view scan results
     @GetMapping("/scan/{id}")
     public String viewScan(@PathVariable("id") UUID scanId, Model model) {
-        // ...existing code...
-        // Minimal lookup: if ScanService returns ScanRecord via repository, prefer a dedicated method.
-        // For simplicity, load via performScan result expectation or introduce a fetch. Assuming repository exists:
-        // model attributes below expect that ScanRecord has getUserProfile() and getBreachRecords()
-        ScanRecord scan = scanService.getScanRecord(scanId); // implement a read-only getter in ScanService if not present
-        UserProfile profile = scan.getUserProfile();
-        List<BreachRecord> breaches = scan.getBreachRecords();
+        try {
+            ScanRecord scan = scanService.getScanRecord(scanId);
+            UserProfile profile = scan.getUserProfile();
+            List<BreachRecord> breaches = scan.getBreachRecords();
 
-        model.addAttribute("profile", profile);
-        model.addAttribute("scan", scan);
-        model.addAttribute("breaches", breaches);
-        return "scan";
+            model.addAttribute("profile", profile);
+            model.addAttribute("scan", scan);
+            model.addAttribute("breaches", breaches);
+            return "results";
+        } catch (Exception ex) {
+            model.addAttribute("error", "Unable to load scan: " + ex.getMessage());
+            return "results"; // show resilient template rather than 500
+        }
     }
 
     // GET /profile/{id} → view user profile
@@ -72,5 +87,9 @@ public class ScanController {
         model.addAttribute("profile", profile);
         return "profile";
     }
-}
 
+    @GetMapping("/scan")
+    public String scanGetRedirect() {
+        return "redirect:/";
+    }
+}
