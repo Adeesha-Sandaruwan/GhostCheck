@@ -6,7 +6,6 @@ import com.ghostcheck.entity.UserProfile;
 import com.ghostcheck.repository.BreachRecordRepository;
 import com.ghostcheck.repository.ScanRecordRepository;
 import com.ghostcheck.repository.UserProfileRepository;
-import com.ghostcheck.service.osint.HIBPClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,16 +19,14 @@ public class ScanService {
     private final UserProfileRepository userProfileRepository;
     private final ScanRecordRepository scanRecordRepository;
     private final BreachRecordRepository breachRecordRepository;
-    private final HIBPClient hibpClient;
 
     public ScanService(UserProfileRepository userProfileRepository,
                        ScanRecordRepository scanRecordRepository,
-                       BreachRecordRepository breachRecordRepository,
-                       HIBPClient hibpClient) {
+                       BreachRecordRepository breachRecordRepository
+    ) {
         this.userProfileRepository = userProfileRepository;
         this.scanRecordRepository = scanRecordRepository;
         this.breachRecordRepository = breachRecordRepository;
-        this.hibpClient = hibpClient;
     }
 
     @Transactional
@@ -37,7 +34,7 @@ public class ScanService {
         UserProfile user = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
-        List<BreachRecord> breaches = hibpClient.breachesForEmail(user.getEmail());
+        List<BreachRecord> breaches = generateFreeBreachData(user.getEmail());
         int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
@@ -80,7 +77,7 @@ public class ScanService {
                 .riskScore(0)
                 .build();
 
-        List<BreachRecord> breaches = hibpClient.breachesForEmail(email);
+        List<BreachRecord> breaches = generateFreeBreachData(email);
         int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
@@ -172,5 +169,62 @@ public class ScanService {
             return c.stream().map(this::stringify).collect(Collectors.joining(",", "[", "]"));
         }
         return "\"" + String.valueOf(v).replace("\"", "\\\"") + "\"";
+    }
+
+    // Free offline breach generator to replace HIBP API.
+    // Generates realistic breaches and risk scores for any email.
+    public List<BreachRecord> generateFreeBreachData(String email) {
+        List<BreachRecord> list = new ArrayList<>();
+        Random random = new Random(email == null ? 0 : email.toLowerCase().hashCode());
+
+        // Add some common "realistic" demo breaches for popular emails
+        Map<String, String> demoBreaches = new HashMap<>();
+        demoBreaches.put("test@example.com", "Demo breach from 2018");
+        demoBreaches.put("ashley.madison@example.com", "Ashley Madison leak 2015");
+        demoBreaches.put("linkedinuser@example.com", "LinkedIn leak 2012");
+        demoBreaches.put("adobe_user@example.com", "Adobe leak 2013");
+
+        String key = email == null ? "" : email.toLowerCase();
+        if (demoBreaches.containsKey(key)) {
+            BreachRecord special = new BreachRecord();
+            special.setSourceName(demoBreaches.get(key));
+            special.setBreachDate(Instant.parse("2015-01-01T00:00:00Z"));
+            special.setAddedDate(Instant.parse("2015-01-05T00:00:00Z"));
+            special.setPwnCount(5_000_000L);
+            special.setExposedData("{\"email\":true,\"password_hash\":true}");
+            special.setDescription("Special offline demo breach entry for " + email);
+            list.add(special);
+        }
+
+        // Generate 50–200 synthetic breaches based on hash of email
+        int totalBreaches = 50 + random.nextInt(150);
+        for (int i = 0; i < totalBreaches; i++) {
+            long pwn = 1_000L + random.nextInt(50_000_000);
+            String exposed;
+            switch (i % 6) {
+                case 0 -> exposed = "{\"email\":true}";
+                case 1 -> exposed = "{\"email\":true,\"password\":true}";
+                case 2 -> exposed = "{\"email\":true,\"password\":true,\"ip\":true}";
+                case 3 -> exposed = "{\"email\":true,\"phone\":true}";
+                case 4 -> exposed = "{\"email\":true,\"address\":true}";
+                default -> exposed = "{\"email\":true,\"password_hash\":true,\"credit card\":true}";
+            }
+
+            BreachRecord record = new BreachRecord();
+            record.setSourceName("OfflineBreach-" + i);
+            // Create somewhat realistic dates
+            int year = 2010 + (i % 10);
+            int month = 1 + (i % 9);
+            String monthStr = (month < 10 ? "0" : "") + month;
+            record.setBreachDate(Instant.parse(year + "-" + monthStr + "-01T00:00:00Z"));
+            record.setAddedDate(Instant.parse(year + "-" + monthStr + "-10T00:00:00Z"));
+            record.setPwnCount(pwn);
+            record.setExposedData(exposed);
+            record.setDescription("Synthetic offline breach #" + i + " for testing");
+
+            list.add(record);
+        }
+
+        return list;
     }
 }
