@@ -99,6 +99,22 @@ public class ScanService {
         return scan;
     }
 
+    @Transactional
+    public void saveScanResults(ScanRecord scan, List<BreachRecord> breaches) {
+        if (scan == null) {
+            throw new IllegalArgumentException("scan must not be null");
+        }
+        // Persist the scan first (get ID if needed)
+        ScanRecord persisted = scanRecordRepository.save(scan);
+
+        // Attach scan to each breach and persist
+        List<BreachRecord> toSave = (breaches == null) ? Collections.emptyList() : breaches;
+        toSave.forEach(b -> b.setScanRecord(persisted));
+        if (!toSave.isEmpty()) {
+            breachRecordRepository.saveAll(toSave);
+        }
+    }
+
     public int calculateRiskScore(List<BreachRecord> breaches) {
         if (breaches == null || breaches.isEmpty()) return 0;
 

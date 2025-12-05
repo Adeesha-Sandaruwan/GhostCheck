@@ -26,8 +26,6 @@ public class HIBPClient {
         this.props = props;
     }
 
-
-
     @SuppressWarnings("unchecked")
     public List<BreachRecord> breachesForEmail(String email) {
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
@@ -52,14 +50,13 @@ public class HIBPClient {
                         } catch (Exception ignored) {}
                     }
                     String exposedJson = toJson(m);
-                    BreachRecord br = BreachRecord.builder()
-                            .sourceName(name)
-                            .breachDate(breachDate)
-                            .description(desc)
-                            .exposedData(exposedJson)
-                            .addedDate(Instant.now())
-                            .pwnCount(parsePwnCount(m))
-                            .build();
+                    BreachRecord br = new BreachRecord();
+                    br.setSourceName(name);
+                    br.setBreachDate(breachDate);
+                    br.setDescription(desc);
+                    br.setExposedData(exposedJson);
+                    br.setAddedDate(Instant.now());
+                    br.setPwnCount(parsePwnCount(m));
                     mapped.add(br);
                 }
                 return mapped;
@@ -91,14 +88,13 @@ public class HIBPClient {
                         } catch (Exception ignored) {}
                     }
                     String exposedJson = toJson(m);
-                    BreachRecord br = BreachRecord.builder()
-                            .sourceName(name)
-                            .breachDate(breachDate)
-                            .description(desc)
-                            .exposedData(exposedJson)
-                            .addedDate(Instant.now())
-                            .pwnCount(parsePwnCount(m))
-                            .build();
+                    BreachRecord br = new BreachRecord();
+                    br.setSourceName(name);
+                    br.setBreachDate(breachDate);
+                    br.setDescription(desc);
+                    br.setExposedData(exposedJson);
+                    br.setAddedDate(Instant.now());
+                    br.setPwnCount(parsePwnCount(m));
                     mapped.add(br);
                 }
             }

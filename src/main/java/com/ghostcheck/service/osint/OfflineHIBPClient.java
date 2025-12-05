@@ -29,14 +29,13 @@ public class OfflineHIBPClient extends HIBPClient {
 
         List<BreachRecord> result = new ArrayList<>(rows.size());
         for (Map<String, Object> r : rows) {
-            result.add(BreachRecord.builder()
-                    .sourceName((String) r.get("sourceName"))
-                    .exposedData((String) r.get("exposedData"))
-                    .breachDate((Instant) r.get("breachDate"))
-                    .addedDate((Instant) r.get("addedDate"))
-                    .pwnCount((Long) r.get("pwnCount"))
-                    // scanRecord set later in ScanService
-                    .build());
+            BreachRecord br = new BreachRecord();
+            br.setSourceName((String) r.get("sourceName"));
+            br.setExposedData((String) r.get("exposedData"));
+            br.setBreachDate((Instant) r.get("breachDate"));
+            br.setAddedDate((Instant) r.get("addedDate"));
+            br.setPwnCount((Long) r.get("pwnCount"));
+            result.add(br);
         }
         return result;
     }
