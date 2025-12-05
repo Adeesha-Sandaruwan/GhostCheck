@@ -51,12 +51,11 @@ public class ScanController {
             model.addAttribute("breaches", scanRecord.getBreachRecords());
             return "results";
         } catch (Exception ex) {
-            // Fallback: run a transient scan and show results without persistence
+            // Fallback: run a transient offline scan and show results without persistence, no banner
             ScanRecord scanRecord = scanService.performScanWithoutPersistence(fullName, email);
             model.addAttribute("profile", scanRecord.getUserProfile());
             model.addAttribute("scan", scanRecord);
             model.addAttribute("breaches", scanRecord.getBreachRecords());
-            model.addAttribute("error", "Scan service is temporarily unavailable. Showing a transient result.");
             return "results";
         }
     }

@@ -39,8 +39,6 @@ public class ScanService {
 
         boolean breached = localBreachClient.isBreached(user.getEmail());
 
-        int riskScore = breached ? 100 : 0;
-
         List<BreachRecord> breaches = new ArrayList<>();
         if (breached) {
             BreachRecord record = BreachRecord.builder()
@@ -53,6 +51,8 @@ public class ScanService {
                     .build();
             breaches.add(record);
         }
+
+        int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
                 .userProfile(user)
@@ -183,7 +183,6 @@ public class ScanService {
                 .build();
 
         boolean breached = localBreachClient.isBreached(email);
-        int riskScore = breached ? 100 : 0;
 
         List<BreachRecord> breaches = new ArrayList<>();
         if (breached) {
@@ -197,6 +196,8 @@ public class ScanService {
                     .build();
             breaches.add(record);
         }
+
+        int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
                 .id(null)
