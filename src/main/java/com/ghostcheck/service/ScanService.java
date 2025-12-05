@@ -6,6 +6,8 @@ import com.ghostcheck.entity.UserProfile;
 import com.ghostcheck.repository.BreachRecordRepository;
 import com.ghostcheck.repository.ScanRecordRepository;
 import com.ghostcheck.repository.UserProfileRepository;
+import com.ghostcheck.service.osint.HIBPClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +21,16 @@ public class ScanService {
     private final UserProfileRepository userProfileRepository;
     private final ScanRecordRepository scanRecordRepository;
     private final BreachRecordRepository breachRecordRepository;
+    private final HIBPClient hibpClient;
 
     public ScanService(UserProfileRepository userProfileRepository,
                        ScanRecordRepository scanRecordRepository,
-                       BreachRecordRepository breachRecordRepository
-    ) {
+                       BreachRecordRepository breachRecordRepository,
+                       @Qualifier("HIBPClient") HIBPClient hibpClient) {
         this.userProfileRepository = userProfileRepository;
         this.scanRecordRepository = scanRecordRepository;
         this.breachRecordRepository = breachRecordRepository;
+        this.hibpClient = hibpClient;
     }
 
     @Transactional
@@ -34,6 +38,7 @@ public class ScanService {
         UserProfile user = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
+        // Offline mode: use deterministic generator instead of HIBP
         List<BreachRecord> breaches = generateFreeBreachData(user.getEmail());
         int riskScore = calculateRiskScore(breaches);
 
@@ -77,6 +82,7 @@ public class ScanService {
                 .riskScore(0)
                 .build();
 
+        // Offline mode: use deterministic generator instead of HIBP
         List<BreachRecord> breaches = generateFreeBreachData(email);
         int riskScore = calculateRiskScore(breaches);
 
