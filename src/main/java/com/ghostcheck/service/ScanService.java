@@ -38,6 +38,7 @@ public class ScanService {
                 .orElseThrow(() -> new NoSuchElementException("UserProfile not found: " + userId));
 
         boolean breached = localBreachClient.isBreached(user.getEmail());
+        int riskScore = breached ? 100 : localBreachClient.randomExposureScore(user.getEmail());
 
         List<BreachRecord> breaches = new ArrayList<>();
         if (breached) {
@@ -46,13 +47,22 @@ public class ScanService {
                     .breachDate(Instant.now())
                     .addedDate(Instant.now())
                     .exposedData("{\"password\":\"compromised\"}")
-                    .pwnCount(1000000L)
-                    .description("Email found in offline breach dataset.")
+                    .pwnCount(1_000_000L)
+                    .description("This email has known breaches in the offline database.")
                     .build();
             breaches.add(record);
+        } else {
+            // Add a friendly advisory entry (non-breach) to carry the message in results
+            BreachRecord advisory = BreachRecord.builder()
+                    .sourceName("Advisory")
+                    .breachDate(Instant.now())
+                    .addedDate(Instant.now())
+                    .exposedData("{\"advice\":\"stay_vigilant\"}")
+                    .pwnCount(null)
+                    .description("No known breaches found in the offline database, but always stay vigilant.")
+                    .build();
+            breaches = Collections.singletonList(advisory);
         }
-
-        int riskScore = calculateRiskScore(breaches);
 
         ScanRecord scan = ScanRecord.builder()
                 .userProfile(user)
@@ -96,6 +106,63 @@ public class ScanService {
         if (!toSave.isEmpty()) {
             breachRecordRepository.saveAll(toSave);
         }
+    }
+
+    /**
+     * Offline fallback that does not persist anything, without transient warnings.
+     */
+    public ScanRecord performScanWithoutPersistence(String fullName, String email) {
+        UserProfile user = UserProfile.builder()
+                .id(null)
+                .fullName(fullName)
+                .email(email)
+                .createdAt(Instant.now())
+                .riskScore(0)
+                .build();
+
+        boolean breached = localBreachClient.isBreached(email);
+        int riskScore = breached ? 100 : localBreachClient.randomExposureScore(email);
+
+        List<BreachRecord> breaches = new ArrayList<>();
+        if (breached) {
+            BreachRecord record = BreachRecord.builder()
+                    .sourceName("Offline Breach Database")
+                    .breachDate(Instant.now())
+                    .addedDate(Instant.now())
+                    .exposedData("{\"password\":\"compromised\"}")
+                    .pwnCount(1_000_000L)
+                    .description("This email has known breaches in the offline database.")
+                    .build();
+            breaches.add(record);
+        } else {
+            BreachRecord advisory = BreachRecord.builder()
+                    .sourceName("Advisory")
+                    .breachDate(Instant.now())
+                    .addedDate(Instant.now())
+                    .exposedData("{\"advice\":\"stay_vigilant\"}")
+                    .pwnCount(null)
+                    .description("No known breaches found in the offline database, but always stay vigilant.")
+                    .build();
+            breaches = Collections.singletonList(advisory);
+        }
+
+        ScanRecord scan = ScanRecord.builder()
+                .id(null)
+                .userProfile(user)
+                .scanDate(Instant.now())
+                .dataSourcesChecked(1)
+                .rawData(buildRawDataSummary(breaches))
+                .riskScore(riskScore)
+                .build();
+
+        if (!breaches.isEmpty()) {
+            breaches.forEach(b -> b.setScanRecord(scan));
+            scan.setBreachRecords(breaches);
+        } else {
+            scan.setBreachRecords(java.util.Collections.emptyList());
+        }
+        user.setRiskScore(riskScore);
+        return scan;
     }
 
     public int calculateRiskScore(List<BreachRecord> breaches) {
@@ -168,53 +235,5 @@ public class ScanService {
             return c.stream().map(this::stringify).collect(Collectors.joining(",", "[", "]"));
         }
         return "\"" + String.valueOf(v).replace("\"", "\\\"") + "\"";
-    }
-
-    /**
-     * Fallback scan that does not persist anything. Useful when the database is unavailable.
-     */
-    public ScanRecord performScanWithoutPersistence(String fullName, String email) {
-        UserProfile user = UserProfile.builder()
-                .id(null)
-                .fullName(fullName)
-                .email(email)
-                .createdAt(Instant.now())
-                .riskScore(0)
-                .build();
-
-        boolean breached = localBreachClient.isBreached(email);
-
-        List<BreachRecord> breaches = new ArrayList<>();
-        if (breached) {
-            BreachRecord record = BreachRecord.builder()
-                    .sourceName("Offline Breach Database")
-                    .breachDate(Instant.now())
-                    .addedDate(Instant.now())
-                    .exposedData("{\"password\":\"compromised\"}")
-                    .pwnCount(1000000L)
-                    .description("Email found in offline breach dataset.")
-                    .build();
-            breaches.add(record);
-        }
-
-        int riskScore = calculateRiskScore(breaches);
-
-        ScanRecord scan = ScanRecord.builder()
-                .id(null)
-                .userProfile(user)
-                .scanDate(Instant.now())
-                .dataSourcesChecked(1)
-                .rawData(buildRawDataSummary(breaches))
-                .riskScore(riskScore)
-                .build();
-
-        if (!breaches.isEmpty()) {
-            breaches.forEach(b -> b.setScanRecord(scan));
-            scan.setBreachRecords(breaches);
-        } else {
-            scan.setBreachRecords(java.util.Collections.emptyList());
-        }
-        user.setRiskScore(riskScore);
-        return scan;
     }
 }
